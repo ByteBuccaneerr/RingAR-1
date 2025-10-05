@@ -9,7 +9,10 @@
       {
         "imports": {
           "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
-          "three/examples/jsm/loaders/GLTFLoader": "https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js"
+          "three/examples/jsm/loaders/GLTFLoader": "https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js",
+          "@tensorflow/tfjs": "https://unpkg.com/@tensorflow/tfjs@4.18.0/dist/tf.js",
+          "@mediapipe/hands": "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675468705",
+          "@tensorflow-models/hand-pose-detection": "https://unpkg.com/@tensorflow-models/hand-pose-detection@2.1.1/dist/hand-pose-detection.js"
         }
       }
     </script>
@@ -68,14 +71,14 @@
     <canvas id="canvas"></canvas>
     <button id="startButton">Yüzüğü Gör</button>
     
-    <script src="https://unpkg.com/@tensorflow/tfjs@4.18.0/dist/tf.js"></script>
-    <script src="https://unpkg.com/@tensorflow-models/hand-pose-detection@2.1.1/dist/hand-pose-detection.js"></script>
-
    <script type="module">
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
     
-    // MediaPipe'ın çözüm yolu:
+    // Kütüphaneler importmap üzerinden modül olarak alınıyor
+    import * as tf from '@tensorflow/tfjs';
+    import * as handPoseDetection from '@tensorflow-models/hand-pose-detection';
+    
     const MEDIAPIPE_SOLUTION_PATH = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675468705';
 
     const video = document.getElementById('video');
@@ -102,7 +105,6 @@
         scene.add(dirLight);
 
         const loader = new GLTFLoader();
-        // ring.glb hatası için yolu kontrol edin. Genellikle bu yol doğrudur.
         loader.load('models/ring.glb', (gltf) => { 
             ring = gltf.scene;
             ring.scale.set(0.03, 0.03, 0.03); 
@@ -124,8 +126,7 @@
     }
 
     async function initHandDetector() {
-        // Kütüphaneler script etiketleriyle yüklendiği için tf global olarak mevcuttur.
-        await tf.ready;
+        await tf.ready();
         console.log("TensorFlow çekirdeği tamamen hazır."); 
 
         await tf.setBackend('webgl'); 
@@ -138,8 +139,8 @@
             maxHands: 1
         };
         
-        // *DÜZELTME:* handPoseDetection'a window objesi üzerinden erişim.
-        detector = await window.handPoseDetection.createDetector(window.handPoseDetection.SupportedModels.MediaPipeHands, detectorConfig);
+        // Hata çözüldü: handPoseDetection modül adı üzerinden kullanılıyor.
+        detector = await handPoseDetection.createDetector(handPoseDetection.SupportedModels.MediaPipeHands, detectorConfig);
         console.log("El dedektörü hazır.");
     }
     
@@ -150,6 +151,7 @@
         try {
             await Promise.all([initHandDetector(), initThree()]); 
 
+            // Kamera izni burada istenir
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
             
